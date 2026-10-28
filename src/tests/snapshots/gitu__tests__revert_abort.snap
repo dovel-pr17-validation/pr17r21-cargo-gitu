@@ -1,0 +1,25 @@
+---
+source: src/tests/mod.rs
+expression: ctx.redact_buffer()
+---
+▌On branch main                                                                 |
+▌Your branch is ahead of 'origin/main' by 2 commit(s).                          |
+                                                                                |
+ Recent commits                                                                 |
+ 7294ba4 main modify new-file                                    Author Name __ |
+ 57409cb add new-file                                            Author Name __ |
+ b66a0bf origin/main add initial-file                            Author Name __ |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+────────────────────────────────────────────────────────────────────────────────|
+$ git revert --abort                                                            |
+styles_hash: e6f959d90ee0bb3b

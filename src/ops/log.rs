@@ -1,0 +1,161 @@
+use super::{Action, OpTrait, selected_rev};
+use crate::{
+    Res,
+    app::{App, PromptParams, State},
+    error::Error,
+    git::tree,
+    item_data::{ItemData, Rev},
+    menu::arg::{Arg, any_regex, positive_number},
+    screen,
+    term::Term,
+};
+use git2::Oid;
+use regex::Regex;
+use std::{rc::Rc, sync::Arc};
+
+/// Default for `-n`, like magit's default log buffer arguments.
+const DEFAULT_LIMIT: u32 = 256;
+
+pub(crate) fn init_args() -> Vec<Arg> {
+    vec![
+        Arg::new_arg(
+            "-n",
+            "Limit number of commits",
+            Some(|| DEFAULT_LIMIT),
+            positive_number,
+        ),
+        Arg::new_arg("--grep", "Search messages", None, any_regex),
+        // Arg::new_str("-S", "Search occurrences"), // TODO: Implement search
+    ]
+}
+
+pub(crate) struct LogCurrent;
+impl OpTrait for LogCurrent {
+    fn get_action(&self, _target: &ItemData) -> Option<Action> {
+        Some(Rc::new(|app: &mut App, _term: &mut Term| {
+            goto_log_screen(app, Vec::new());
+            Ok(())
+        }))
+    }
+
+    fn display(&self, _state: &State) -> String {
+        "current".into()
+    }
+}
+
+pub(crate) struct LogOther;
+impl OpTrait for LogOther {
+    fn get_action(&self, _target: &ItemData) -> Option<Action> {
+        Some(Rc::new(move |app: &mut App, term: &mut Term| {
+            let rev = app.prompt(
+                term,
+                &PromptParams {
+                    prompt: "Log rev",
+                    create_default_value: Box::new(|app| {
+                        selected_rev(app)
+                            .as_ref()
+                            .map(Rev::shorthand)
+                            .map(String::from)
+                    }),
+                    ..Default::default()
+                },
+            )?;
+
+            log_other(app, term, &rev)?;
+            Ok(())
+        }))
+    }
+
+    fn display(&self, _state: &State) -> String {
+        "other".into()
+    }
+}
+
+pub(crate) struct LogLocalBranches;
+impl OpTrait for LogLocalBranches {
+    fn get_action(&self, _target: &ItemData) -> Option<Action> {
+        Some(Rc::new(|app: &mut App, _term: &mut Term| {
+            let roots = tree::local_branch_roots(&app.state.repo);
+            goto_log_screen(app, roots);
+            Ok(())
+        }))
+    }
+
+    fn display(&self, _state: &State) -> String {
+        "local branches".into()
+    }
+}
+
+pub(crate) struct LogAllBranches;
+impl OpTrait for LogAllBranches {
+    fn get_action(&self, _target: &ItemData) -> Option<Action> {
+        Some(Rc::new(|app: &mut App, _term: &mut Term| {
+            let roots = tree::all_branch_roots(&app.state.repo);
+            goto_log_screen(app, roots);
+            Ok(())
+        }))
+    }
+
+    fn display(&self, _state: &State) -> String {
+        "all branches".into()
+    }
+}
+
+pub(crate) struct LogAllRefs;
+impl OpTrait for LogAllRefs {
+    fn get_action(&self, _target: &ItemData) -> Option<Action> {
+        Some(Rc::new(|app: &mut App, _term: &mut Term| {
+            let roots = tree::all_ref_roots(&app.state.repo);
+            goto_log_screen(app, roots);
+            Ok(())
+        }))
+    }
+
+    fn display(&self, _state: &State) -> String {
+        "all refs".into()
+    }
+}
+
+fn log_other(app: &mut App, _term: &mut Term, result: &str) -> Res<()> {
+    let oid_result = match app.state.repo.revparse_single(result) {
+        Ok(rev) => Ok(rev.id()),
+        Err(err) => Err(Error::FindGitRev(err)),
+    };
+
+    let oid = oid_result?;
+
+    goto_log_screen(app, vec![oid]);
+    Ok(())
+}
+
+fn goto_log_screen(app: &mut App, revs: Vec<Oid>) {
+    app.state.screens.drain(1..);
+    let size = app.state.screens.last().unwrap().size;
+    let limit = *app
+        .state
+        .pending_menu
+        .as_ref()
+        .and_then(|m| m.args.get("-n"))
+        .and_then(|arg| arg.value_as::<u32>())
+        .unwrap_or(&DEFAULT_LIMIT);
+
+    let msg_regex_menu = app
+        .state
+        .pending_menu
+        .as_ref()
+        .and_then(|m| m.args.get("--grep"));
+
+    let msg_regex = msg_regex_menu.and_then(|arg| arg.value_as::<Regex>().cloned());
+
+    app.state.screens.push(
+        screen::log::create(
+            Arc::clone(&app.state.config),
+            Rc::clone(&app.state.repo),
+            size,
+            limit as usize,
+            revs,
+            msg_regex,
+        )
+        .expect("Couldn't create screen"),
+    );
+}

@@ -1,0 +1,25 @@
+---
+source: src/tests/stage.rs
+expression: ctx.redact_buffer()
+---
+ On branch main                                                                 |
+ Your branch is up to date with 'origin/main'.                                  |
+                                                                                |
+▌Staged changes (2)                                                             |
+▌added      file-a                                                              |
+▌added      file-b                                                              |
+                                                                                |
+ Recent commits                                                                 |
+ b66a0bf main origin/main add initial-file                       Author Name __ |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+────────────────────────────────────────────────────────────────────────────────|
+$ git add file-a file-b                                                         |
+styles_hash: 9079ad1b3941c6c8

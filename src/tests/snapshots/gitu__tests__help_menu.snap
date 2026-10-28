@@ -1,0 +1,25 @@
+---
+source: src/tests/mod.rs
+expression: ctx.redact_buffer()
+---
+────────────────────────────────────────────────────────────────────────────────|
+ Help                                     Submenu           On branch main      |
+ Y                Show Refs               b   Branch        tab Fold            |
+ k/up             Up                      c   Commit                            |
+ j/down           Down                    f   Fetch                             |
+ ctrl+k/ctrl+up   Up line                 h/? Help                              |
+ ctrl+j/ctrl+down Down line               l   Log                               |
+ alt+k/alt+up     Prev section            m   Merge                             |
+ alt+j/alt+down   Next section            M   Remote                            |
+ alt+h/alt+left   Parent section          F   Pull                              |
+ g+g              Top                     P   Push                              |
+ G                Bottom                  r   Rebase                            |
+ ctrl+u           Scroll half page up     X   Reset                             |
+ ctrl+d           Scroll half page down   V   Revert                            |
+ ctrl+y           Scroll view up          A   Cherry-pick                       |
+ ctrl+e           Scroll view down        z   Stash                             |
+ /                Search                                                        |
+ n                Next match                                                    |
+ N                Previous match                                                |
+ g+r              Refresh                                                       |
+styles_hash: 8e4b0994d480981d

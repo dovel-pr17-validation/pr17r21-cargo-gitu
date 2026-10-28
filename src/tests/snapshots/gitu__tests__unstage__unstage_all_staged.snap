@@ -1,0 +1,25 @@
+---
+source: src/tests/unstage.rs
+expression: ctx.redact_buffer()
+---
+ On branch main                                                                 |
+ Your branch is up to date with 'origin/main'.                                  |
+                                                                                |
+ Untracked files                                                                |
+ one                                                                            |
+ two                                                                            |
+▌unaffected                                                                     |
+                                                                                |
+ Recent commits                                                                 |
+ b66a0bf main origin/main add initial-file                       Author Name __ |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+────────────────────────────────────────────────────────────────────────────────|
+$ git reset HEAD --                                                             |
+styles_hash: e0692c6beb9dc87a

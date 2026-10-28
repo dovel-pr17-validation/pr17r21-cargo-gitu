@@ -1,0 +1,25 @@
+---
+source: src/tests/remote.rs
+expression: ctx.redact_buffer()
+---
+▌On branch main                                                                 |
+▌Your branch is up to date with 'origin/main'.                                  |
+                                                                                |
+ Recent commits                                                                 |
+ b66a0bf main origin/main add initial-file                       Author Name __ |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+────────────────────────────────────────────────────────────────────────────────|
+ Remote                                                                         |
+ a     add remote                                                               |
+ K     remove remote                                                            |
+ r     rename remote                                                            |
+ q/esc Quit/Close                                                               |
+styles_hash: f0b3d15664a45e6

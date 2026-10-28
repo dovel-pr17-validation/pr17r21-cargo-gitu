@@ -1,0 +1,25 @@
+---
+source: src/tests/cherry_pick.rs
+expression: ctx.redact_buffer()
+---
+ * b66a0bf main origin/main add initial-file                     Author Name __ |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+────────────────────────────────────────────────────────────────────────────────|
+ 4/4   Cherry-pick › █                                                          |
+▌main                                                                           |
+ other-branch                                                                   |
+ origin/HEAD                                                                    |
+ origin/main                                                                    |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+styles_hash: cdf191580fdd8b34

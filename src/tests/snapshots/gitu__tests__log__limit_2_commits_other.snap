@@ -1,0 +1,25 @@
+---
+source: src/tests/log.rs
+expression: ctx.redact_buffer()
+---
+▌* 8bb5532 main add first commit                                 Author Name __ |
+ * 6c08cf7 add second commit                                     Author Name __ |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+styles_hash: 4256947eac8c1a17

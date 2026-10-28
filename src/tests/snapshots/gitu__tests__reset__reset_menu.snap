@@ -1,0 +1,25 @@
+---
+source: src/tests/reset.rs
+expression: ctx.redact_buffer()
+---
+ * ba1a85d main add unwanted-file                                Author Name __ |
+▌* b66a0bf origin/main add initial-file                          Author Name __ |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+────────────────────────────────────────────────────────────────────────────────|
+ Reset                                                                          |
+ s     soft                                                                     |
+ m     mixed                                                                    |
+ h     hard                                                                     |
+ q/esc Quit/Close                                                               |
+styles_hash: 8f9266bd8ec2b545

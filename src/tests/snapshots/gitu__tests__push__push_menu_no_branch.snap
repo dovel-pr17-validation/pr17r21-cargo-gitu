@@ -1,0 +1,25 @@
+---
+source: src/tests/push.rs
+expression: ctx.redact_buffer()
+---
+▌No branch                                                                      |
+                                                                                |
+ Recent commits                                                                 |
+ b66a0bf main origin/main add initial-file                       Author Name __ |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+────────────────────────────────────────────────────────────────────────────────|
+! Head is not a branch                                                          |
+styles_hash: 2d9118b5dc6c867b

@@ -1,0 +1,6 @@
+/target
+*.snap.new
+/gitu.log
+.direnv
+result
+/testfiles

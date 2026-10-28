@@ -1,0 +1,81 @@
+[package]
+name = "gitu"
+description = "A git client inspired by Magit"
+version = "0.43.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/altsem/gitu"
+
+[[bench]]
+name = "show"
+harness = false
+
+[[bench]]
+name = "ui"
+harness = false
+
+[dev-dependencies]
+pretty_assertions = "1.4.1"
+temp-dir = "0.1.16"
+criterion = "0.8.1"
+insta = "1.46.0"
+temp-env = "0.3.6"
+stdext = "0.3.3"
+url = "2.5.7"
+
+[profile.profiling]
+inherits = "dev"
+opt-level = 1
+
+[profile.release]
+strip = true
+
+[dependencies]
+arboard = { version = "3.6.1", default-features = false, features = ["wayland-data-control", "windows-sys"] }
+chrono = "0.4.42"
+clap = { version = "4.5.54", features = ["derive"] }
+clap_complete = "4.5.58"
+crossterm = "0.28.1"
+etcetera = "0.11.0"
+figment = { version = "0.10.19", features = ["toml"] }
+git-version = "0.3.9"
+git2 = { version = "0.21.0", default-features = false }
+itertools = "0.14.0"
+log = "0.4.28"
+nom = "8.0.0"
+notify = "8.0.0"
+serde = { version = "1.0.225", features = ["derive"] }
+simple-logging = "2.0.2"
+toml = "0.8.23"
+tree-sitter = "=0.25.6"
+tree-sitter-highlight = "=0.25.6"
+tree-sitter-rust = "=0.24.0"
+tree-sitter-toml-ng = "=0.7.0"
+tree-sitter-javascript = "=0.23.1"
+tree-sitter-c = "=0.24.1"
+tree-sitter-json = "=0.24.8"
+tree-sitter-cpp = "=0.23.4"
+tree-sitter-ruby = "=0.23.1"
+tree-sitter-haskell = "=0.23.1"
+tree-sitter-go = "=0.23.4"
+tree-sitter-c-sharp = "=0.23.1"
+tree-sitter-python = "=0.23.6"
+tree-sitter-typescript = "=0.23.2"
+tree-sitter-bash = "=0.25.0"
+tree-sitter-php = "=0.23.11"
+tree-sitter-java = "=0.23.5"
+tree-sitter-scala = "=0.23.4"
+tree-sitter-ocaml = "=0.24.2"
+tree-sitter-html = "=0.23.2"
+tree-sitter-elixir = "=0.3.4"
+regex = "1.12.2"
+strip-ansi-escapes = "0.2.1"
+unicode-segmentation = "1.12.0"
+cached = "0.56.0"
+strum = { version = "0.26.3", features = ["derive"] }
+tinyvec = "1.10.0"
+smashquote = "0.1.2"
+imara-diff = { version = "0.2.0", default-features = false }
+fuzzy-matcher = "0.3.7"
+unicode-width = "0.2.0"
+url = "2.5.7"

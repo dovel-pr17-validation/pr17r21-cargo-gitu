@@ -1,0 +1,25 @@
+---
+source: src/tests/remote.rs
+expression: ctx.redact_buffer()
+---
+▌On branch main                                                                 |
+                                                                                |
+ Recent commits                                                                 |
+ b66a0bf main add initial-file                                   Author Name __ |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+────────────────────────────────────────────────────────────────────────────────|
+$ git remote remove origin                                                      |
+styles_hash: f38bbbcefb723df8

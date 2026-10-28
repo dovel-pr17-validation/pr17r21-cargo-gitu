@@ -1,0 +1,25 @@
+---
+source: src/tests/stash.rs
+expression: ctx.redact_buffer()
+---
+ On branch main                                                                 |
+ Your branch is up to date with 'origin/main'.                                  |
+                                                                                |
+▌Staged changes (2)                                                             |
+▌added      file-one…                                                           |
+▌added      file-two                                                            |
+▌@@ -0,0 +1 @@                                                                  |
+▌+blahonga                                                                      |
+                                                                                |
+ Recent commits                                                                 |
+ b66a0bf main origin/main add initial-file                       Author Name __ |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+────────────────────────────────────────────────────────────────────────────────|
+! Cannot stash: working tree is empty                                           |
+styles_hash: cef1b68b62a4b57

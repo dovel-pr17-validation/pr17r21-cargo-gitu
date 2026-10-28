@@ -1,0 +1,588 @@
+use diff::Diff;
+use git2::{Branch, Repository};
+use itertools::Itertools;
+use remote::get_branch_upstream;
+
+use self::{commit::Commit, merge_status::MergeStatus, rebase_status::RebaseStatus};
+use crate::{
+    Res,
+    error::{Error, Utf8Error},
+    git::diff::DiffType,
+    gitu_diff,
+    item_data::{Ref, Rev},
+};
+use std::{
+    fs,
+    path::Path,
+    process::Command,
+    str::{self, FromStr},
+};
+
+pub(crate) mod commit;
+pub(crate) mod diff;
+pub(crate) mod merge_status;
+mod parse;
+pub(crate) mod rebase_status;
+pub(crate) mod remote;
+pub(crate) mod status;
+pub(crate) mod tree;
+
+pub(crate) fn rebase_status(repo: &Repository) -> Res<Option<RebaseStatus>> {
+    let dir = repo.workdir().expect("No workdir");
+    let mut rebase_onto_file = dir.to_path_buf();
+    rebase_onto_file.push(".git/rebase-merge/onto");
+
+    let mut rebase_head_name_file = dir.to_path_buf();
+    rebase_head_name_file.push(".git/rebase-merge/head-name");
+
+    match fs::read_to_string(&rebase_onto_file) {
+        Ok(content) => {
+            let onto_hash = content.trim().to_string();
+            Ok(Some(RebaseStatus {
+                onto: branch_name_lossy(dir, &onto_hash)?
+                    .unwrap_or_else(|| onto_hash[..7].to_string()),
+                head_name: fs::read_to_string(rebase_head_name_file)
+                    .map_err(Error::ReadRebaseStatusFile)?
+                    .trim()
+                    .strip_prefix("refs/heads/")
+                    .unwrap()
+                    .to_string(),
+                // TODO include log of 'done' items
+            }))
+        }
+        Err(err) => {
+            log::warn!(
+                "Couldn't read {}, due to {}",
+                rebase_onto_file.to_string_lossy(),
+                err
+            );
+            Ok(None)
+        }
+    }
+}
+
+pub(crate) fn merge_status(repo: &Repository) -> Res<Option<MergeStatus>> {
+    let dir = repo.workdir().expect("No workdir");
+    let mut merge_head_file = dir.to_path_buf();
+    merge_head_file.push(".git/MERGE_HEAD");
+
+    match fs::read_to_string(&merge_head_file) {
+        Ok(content) => {
+            let head = content.trim().to_string();
+            Ok(Some(MergeStatus {
+                head: branch_name_lossy(dir, &head)?.unwrap_or(head[..7].to_string()),
+            }))
+        }
+        Err(err) => {
+            log::warn!(
+                "Couldn't read {}, due to {}",
+                merge_head_file.to_string_lossy(),
+                err
+            );
+            Ok(None)
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct RevertStatus {
+    pub head: String,
+}
+
+pub(crate) fn revert_status(repo: &Repository) -> Res<Option<RevertStatus>> {
+    let dir = repo.workdir().expect("No workdir");
+    let mut revert_head_file = dir.to_path_buf();
+    revert_head_file.push(".git/REVERT_HEAD");
+
+    match fs::read_to_string(&revert_head_file) {
+        Ok(content) => {
+            let head = content.trim().to_string();
+            Ok(Some(RevertStatus {
+                head: branch_name_lossy(dir, &head)?.unwrap_or(head[..7].to_string()),
+            }))
+        }
+        Err(err) => {
+            log::warn!(
+                "Couldn't read {}, due to {}",
+                revert_head_file.to_string_lossy(),
+                err
+            );
+            Ok(None)
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct CherryPickStatus {
+    pub head: String,
+}
+
+pub(crate) fn cherry_pick_status(repo: &Repository) -> Res<Option<CherryPickStatus>> {
+    let dir = repo.workdir().expect("No workdir");
+    let mut cherry_pick_head_file = dir.to_path_buf();
+    cherry_pick_head_file.push(".git/CHERRY_PICK_HEAD");
+
+    match fs::read_to_string(&cherry_pick_head_file) {
+        Ok(content) => {
+            let head = content.trim().to_string();
+            Ok(Some(CherryPickStatus {
+                head: branch_name_lossy(dir, &head)?.unwrap_or(head[..7].to_string()),
+            }))
+        }
+        Err(err) => {
+            log::warn!(
+                "Couldn't read {}, due to {}",
+                cherry_pick_head_file.to_string_lossy(),
+                err
+            );
+            Ok(None)
+        }
+    }
+}
+
+fn branch_name_lossy(dir: &Path, hash: &str) -> Res<Option<String>> {
+    let out = Command::new("git")
+        .args(["for-each-ref", "--format", "%(objectname) %(refname:short)"])
+        .current_dir(dir)
+        .output()
+        .map_err(Error::ReadBranchName)?
+        .stdout;
+
+    Ok(String::from_utf8_lossy(&out)
+        .lines()
+        .find(|line| line.starts_with(hash))
+        .map(|line| line.split(' ').nth(1).unwrap().to_string()))
+}
+
+pub(crate) fn diff_unstaged(repo: &Repository) -> Res<Diff> {
+    let text = String::from_utf8_lossy(
+        &Command::new("git")
+            .current_dir(repo.workdir().expect("Bare repos unhandled"))
+            .args(["diff", "--no-ext-diff"])
+            .output()
+            .map_err(Error::GitDiff)?
+            .stdout,
+    )
+    .into_owned();
+
+    Ok(Diff {
+        file_diffs: gitu_diff::Parser::new(&text).parse_diff().unwrap(),
+        diff_type: DiffType::WorkdirToIndex,
+        text,
+        commit: None,
+    })
+}
+
+pub(crate) fn diff_staged(repo: &Repository) -> Res<Diff> {
+    let text = String::from_utf8_lossy(
+        &Command::new("git")
+            .current_dir(repo.workdir().expect("Bare repos unhandled"))
+            .args(["diff", "--no-ext-diff", "--staged"])
+            .output()
+            .map_err(Error::GitDiff)?
+            .stdout,
+    )
+    .into_owned();
+
+    Ok(Diff {
+        file_diffs: gitu_diff::Parser::new(&text).parse_diff().unwrap(),
+        diff_type: DiffType::IndexToTree,
+        text,
+        commit: None,
+    })
+}
+
+pub(crate) fn status(dir: &Path) -> Res<status::Status> {
+    let text = String::from_utf8_lossy(
+        &Command::new("git")
+            .current_dir(dir)
+            .args(["status", "--porcelain", "--branch"])
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .into_owned();
+
+    Ok(status::Status::from_str(&text).unwrap())
+}
+
+pub(crate) fn show(repo: &Repository, reference: &str) -> Res<Diff> {
+    let text = String::from_utf8_lossy(
+        &Command::new("git")
+            .current_dir(repo.workdir().expect("Bare repos unhandled"))
+            .args(["show", reference])
+            .output()
+            .map_err(Error::GitShow)?
+            .stdout,
+    )
+    .into_owned();
+
+    Ok(Diff {
+        file_diffs: gitu_diff::Parser::new(&text).parse_diff().unwrap(),
+        diff_type: DiffType::TreeToTree,
+        text,
+        commit: Some(reference.to_string()),
+    })
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct StashDiffs {
+    pub staged: Diff,
+    pub unstaged: Diff,
+    pub untracked: Option<Diff>,
+}
+
+pub(crate) fn stash_diffs(repo: &Repository, stash_ref: &str) -> Res<StashDiffs> {
+    let dir = repo.workdir().expect("Bare repos unhandled");
+
+    let stash_commit = repo
+        .revparse_single(stash_ref)
+        .map_err(Error::GitShowMeta)?
+        .peel_to_commit()
+        .map_err(Error::GitShowMeta)?;
+
+    let diff = |from: &str, to: &str, paths: &[std::ffi::OsString]| -> Res<Diff> {
+        let mut cmd = Command::new("git");
+        cmd.current_dir(dir);
+        cmd.args(["diff", "--no-ext-diff"]);
+        cmd.args([from, to]);
+        if !paths.is_empty() {
+            cmd.arg("--");
+            cmd.args(paths);
+        }
+
+        let text =
+            String::from_utf8_lossy(&cmd.output().map_err(Error::GitDiff)?.stdout).into_owned();
+
+        Ok(Diff {
+            file_diffs: gitu_diff::Parser::new(&text).parse_diff().unwrap(),
+            diff_type: DiffType::TreeToTree,
+            text,
+            commit: None,
+        })
+    };
+
+    let show = || -> Res<Diff> {
+        let text = String::from_utf8_lossy(
+            &Command::new("git")
+                .current_dir(dir)
+                .args(["stash", "show", "-p", stash_ref])
+                .output()
+                .map_err(Error::GitShow)?
+                .stdout,
+        )
+        .into_owned();
+
+        Ok(Diff {
+            file_diffs: gitu_diff::Parser::new(&text).parse_diff().unwrap(),
+            diff_type: DiffType::TreeToTree,
+            text,
+            commit: None,
+        })
+    };
+
+    if stash_commit.parent_count() < 2 {
+        let empty = Diff {
+            text: String::new(),
+            diff_type: DiffType::TreeToTree,
+            file_diffs: vec![],
+            commit: None,
+        };
+        return Ok(StashDiffs {
+            staged: empty,
+            unstaged: show()?,
+            untracked: None,
+        });
+    }
+
+    let base_ref = format!("{stash_ref}^");
+    let index_ref = format!("{stash_ref}^2");
+
+    let staged = diff(&base_ref, &index_ref, &[])?;
+    let unstaged = diff(&index_ref, stash_ref, &[])?;
+
+    let untracked = if stash_commit.parent_count() >= 3 {
+        let untracked_ref = format!("{stash_ref}^3");
+        let paths_out = Command::new("git")
+            .current_dir(dir)
+            .args([
+                "ls-tree",
+                "-z",
+                "--name-only",
+                "-r",
+                "--full-tree",
+                &untracked_ref,
+            ])
+            .output()
+            .map_err(Error::GitShow)?
+            .stdout;
+
+        let paths = paths_out
+            .split(|b| *b == b'\0')
+            .filter(|p| !p.is_empty())
+            .map(|p| std::ffi::OsString::from(String::from_utf8_lossy(p).into_owned()))
+            .collect::<Vec<_>>();
+
+        Some(diff(&base_ref, &untracked_ref, &paths)?)
+    } else {
+        None
+    };
+
+    Ok(StashDiffs {
+        staged,
+        unstaged,
+        untracked,
+    })
+}
+
+pub(crate) fn show_summary(repo: &Repository, reference: &str) -> Res<Commit> {
+    let object = &repo
+        .revparse_single(reference)
+        .map_err(Error::GitShowMeta)?;
+    let commit = object.peel_to_commit().map_err(Error::GitShowMeta)?;
+
+    let author = commit.author();
+    let name = author.name().unwrap_or("");
+    let email = commit
+        .author()
+        .email()
+        .map(|email| format!("<{email}>"))
+        .unwrap_or("".to_string());
+
+    let message = commit
+        .message()
+        .unwrap_or("")
+        .to_string()
+        .lines()
+        .map(|line| format!("    {line}"))
+        .join("\n");
+
+    let offset = chrono::FixedOffset::east_opt(author.when().offset_minutes() * 60).unwrap();
+    let time = chrono::DateTime::with_timezone(
+        &chrono::DateTime::from_timestamp(author.when().seconds(), 0).unwrap(),
+        &offset,
+    );
+
+    let details = format!(
+        "Author: {}\nDate:   {}\n\n{}",
+        [name, &email].join(" "),
+        time.to_rfc2822(),
+        message
+    );
+
+    Ok(Commit {
+        hash: commit.id().to_string(),
+        details,
+    })
+}
+
+pub(crate) fn get_current_branch_name(repo: &git2::Repository) -> Res<String> {
+    Ok(String::from_utf8_lossy(
+        get_current_branch(repo)?
+            .name_bytes()
+            .map_err(Error::CurrentBranchName)?,
+    )
+    .into_owned())
+}
+
+pub(crate) fn get_head_name(repo: &git2::Repository) -> Res<String> {
+    Ok(String::from_utf8_lossy(repo.head().map_err(Error::GetHead)?.name_bytes()).into_owned())
+}
+
+pub(crate) fn get_current_branch(repo: &git2::Repository) -> Res<Branch<'_>> {
+    let head = repo.head().map_err(Error::GetHead)?;
+    if head.is_branch() {
+        Ok(Branch::wrap(head))
+    } else {
+        Err(Error::NotOnBranch)
+    }
+}
+
+pub(crate) fn is_branch_merged(repo: &git2::Repository, name: &str) -> Res<bool> {
+    let branch = repo
+        .find_branch(name, git2::BranchType::Local)
+        .map_err(Error::IsBranchMerged)?;
+
+    let upstream = get_branch_upstream(&branch)?;
+
+    let reference = match upstream {
+        Some(u) => u.into_reference(),
+        None => repo.head().map_err(Error::GetHead)?,
+    };
+
+    let ref_commit = reference.peel_to_commit().map_err(Error::IsBranchMerged)?;
+
+    let commit = branch
+        .into_reference()
+        .peel_to_commit()
+        .map_err(Error::IsBranchMerged)?;
+
+    Ok(commit.id() == ref_commit.id()
+        || repo
+            .graph_descendant_of(ref_commit.id(), commit.id())
+            .map_err(Error::IsBranchMerged)?)
+}
+
+pub(crate) fn does_branch_exist(repo: &git2::Repository, name: &str) -> Res<bool> {
+    let Err(err) = repo.find_branch(name, git2::BranchType::Local) else {
+        return Ok(true);
+    };
+
+    if err.code() == git2::ErrorCode::NotFound {
+        Ok(false)
+    } else {
+        Err(Error::DoesBranchExist(err))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct BlameLine {
+    pub commit_hash: String,
+    pub short_hash: String,
+    pub author: String,
+    pub author_time: i64,
+    pub summary: String,
+    pub line_num: u32,
+    pub orig_line_num: u32,
+    pub content: String,
+}
+
+pub(crate) fn blame(
+    repo: &Repository,
+    file_path: &str,
+    commit: Option<&str>,
+) -> Res<Vec<BlameLine>> {
+    let dir = repo.workdir().expect("Bare repos unhandled");
+
+    let mut args = vec!["blame", "--line-porcelain"];
+    let commit_owned;
+    if let Some(c) = commit {
+        commit_owned = c.to_string();
+        args.push(commit_owned.as_str());
+    }
+    args.extend_from_slice(&["--", file_path]);
+
+    let output = Command::new("git")
+        .current_dir(dir)
+        .args(&args)
+        .output()
+        .map_err(Error::GitBlame)?;
+
+    if !output.status.success() {
+        return Ok(vec![]);
+    }
+
+    let text = String::from_utf8_lossy(&output.stdout).into_owned();
+    Ok(parse_blame_porcelain(&text))
+}
+
+fn parse_blame_porcelain(text: &str) -> Vec<BlameLine> {
+    let mut lines = text.lines();
+    let mut result = Vec::new();
+
+    while let Some(header) = lines.next() {
+        let parts: Vec<&str> = header.splitn(4, ' ').collect();
+        if parts.len() < 3 || parts[0].len() < 8 {
+            continue;
+        }
+
+        let commit_hash = parts[0].to_string();
+        let short_hash = commit_hash[..8].to_string();
+        let orig_line_num: u32 = parts[1].parse().unwrap_or(0);
+        let line_num: u32 = parts[2].parse().unwrap_or(0);
+
+        let mut author = String::new();
+        let mut author_time: i64 = 0;
+        let mut summary = String::new();
+        let mut content = String::new();
+
+        for line in lines.by_ref() {
+            if let Some(rest) = line.strip_prefix('\t') {
+                content = rest.to_string();
+                break;
+            } else if let Some(rest) = line.strip_prefix("author ") {
+                author = rest.to_string();
+            } else if let Some(rest) = line.strip_prefix("author-time ") {
+                author_time = rest.parse().unwrap_or(0);
+            } else if let Some(rest) = line.strip_prefix("summary ") {
+                summary = rest.to_string();
+            }
+        }
+
+        result.push(BlameLine {
+            commit_hash,
+            short_hash,
+            author,
+            author_time,
+            summary,
+            line_num,
+            orig_line_num,
+            content,
+        });
+    }
+
+    result
+}
+
+pub(crate) fn restore_index(file: &Path) -> Command {
+    let mut cmd = Command::new("git");
+    cmd.args(["restore", "--staged"]);
+    cmd.arg(file);
+    cmd
+}
+
+pub(crate) fn head(repo: &git2::Repository) -> Res<Rev> {
+    let head = repo.head().map_err(Error::GetHead)?;
+    Rev::from_reference(&head)
+}
+
+pub(crate) fn head_ref(repo: &git2::Repository) -> Res<Option<Ref>> {
+    match head(repo)? {
+        Rev::Ref(r) => Ok(Some(r)),
+        Rev::Commit(_) => Ok(None),
+    }
+}
+
+pub(crate) fn branches_tags(repo: &git2::Repository) -> Res<Vec<Ref>> {
+    let mut refs = branches(repo, None)?
+        .into_iter()
+        .chain(tags(repo)?)
+        .collect::<Vec<_>>();
+
+    refs.sort_by_key(|r| {
+        std::cmp::Reverse(
+            repo.find_reference(&r.to_full_refname())
+                .ok()
+                .and_then(|r| r.peel_to_commit().ok())
+                .map(|c| c.time().seconds())
+                .unwrap_or(0),
+        )
+    });
+
+    Ok(refs)
+}
+
+pub(crate) fn branches(repo: &git2::Repository, filter: Option<git2::BranchType>) -> Res<Vec<Ref>> {
+    Ok(repo
+        .branches(filter)
+        .map_err(Error::ListGitReferences)?
+        .filter_map(|branch| {
+            let (branch, _) = branch.ok()?;
+            let Ok(Rev::Ref(r)) = Rev::from_reference(branch.get()) else {
+                return None;
+            };
+
+            Some(r)
+        })
+        .collect())
+}
+
+pub(crate) fn tags(repo: &git2::Repository) -> Res<Vec<Ref>> {
+    Ok(repo
+        .tag_names(None)
+        .map_err(Error::ListGitReferences)?
+        .into_iter()
+        .filter_map(|tag_name| tag_name.ok().flatten())
+        .map(|tag_name| Ref::Tag(tag_name.to_string()))
+        .collect())
+}

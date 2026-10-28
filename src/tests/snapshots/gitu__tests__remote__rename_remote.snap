@@ -1,0 +1,25 @@
+---
+source: src/tests/remote.rs
+expression: ctx.redact_buffer()
+---
+▌On branch main                                                                 |
+▌Your branch is up to date with 'origin2/main'.                                 |
+                                                                                |
+ Recent commits                                                                 |
+ b66a0bf main origin2/main add initial-file                      Author Name __ |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+────────────────────────────────────────────────────────────────────────────────|
+$ git remote rename origin origin2                                              |
+styles_hash: db2e91a25b912ff4

@@ -1,0 +1,25 @@
+---
+source: src/tests/discard.rs
+expression: ctx.redact_buffer()
+---
+ Branches                                                                       |
+▌* main                                                                         |
+                                                                                |
+ Remote origin                                                                  |
+   origin/HEAD                                                                  |
+   origin/main                                                                  |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+                                                                                |
+────────────────────────────────────────────────────────────────────────────────|
+$ git branch -d asd                                                             |
+Deleted branch asd (was b66a0bf).                                               |
+styles_hash: ab0e1a16029dbb52
