@@ -31,8 +31,8 @@ opt-level = 1
 strip = true
 
 [dependencies]
-arboard = { version = "3.6.1", default-features = false, features = ["wayland-data-control", "windows-sys"] }
-chrono = "0.4.42"
+arboard = { version = "3.7.0", default-features = false, features = ["wayland-data-control", "windows-sys"] }
+chrono = "0.4.45"
 clap = { version = "4.5.54", features = ["derive"] }
 clap_complete = "4.5.58"
 crossterm = "0.28.1"
